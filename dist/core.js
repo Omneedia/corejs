@@ -25,91 +25,65 @@
     "use strict"
 
     global.App = global.App || {
-        version: '0.0.8',
+        version: '0.0.9',
         versionDetail: {
             major: 0,
             minor: 0,
-            patch: 8
+            patch: 9
         },
-        unload: function (name) {
-            delete modules[name]
-            // This probably doesn't exist, but just in case
-            delete factories[name]
+        cdn: {
+            pkg: "https://unpkg.com/"
         },
-
-        defined: function (name) {
-            return name in modules
-        },
-
-        required: function (name) {
-            return name in modules && !(name in factories)
-        },
-
-        module: function (name, value) {
-            if (name in modules) {
-                throw Error("Module already defined: " + name)
-            }
-
-            modules[name] = value != null ? value : {}
-            // This probably doesn't exist, but just in case
-            delete factories[name]
-        },
-        load: function (ns, name, callback) {
-            if (callback == null) {
-                callback = name
-                name = ns
-                ns = null
-            }
-
-            function load() {
-                if (ns != null) {
-                    try {
-                        ns = init(ns)
-                    } catch (e) {
-                        return callback(e)
-                    }
-                }
-
-                callback(null, ns)
-            }
-
-            if (document != null) {
-                var el = document.createElement("script")
-
-                el.src = name
-
-                el.onload = function (ev) {
-                    ev.preventDefault()
-                    ev.stopPropagation()
-
-                    // Remove the node after it loads.
-                    document.body.removeChild(el)
-                    load()
-                }
-
-                el.onerror = function (ev) {
-                    ev.preventDefault()
-                    ev.stopPropagation()
-
-                    // Remove the node after it loads.
-                    document.body.removeChild(el)
-                    callback(ev)
-                }
-
-                document.body.appendChild(el)
+        dependencies: [],
+        scripts: [],
+        load: function (name, callback) {
+            var module;
+            if (typeof name === "object") {
+                module = name.module;
+                name = name.url;
             } else {
-                setTimeout(function () {
-                    try {
-                        importScripts(name)
-                    } catch (e) {
-                        return callback(e)
-                    }
+                module = -1;
+            };
 
-                    load()
-                }, 0)
+            if (App.scripts.indexOf(name) > -1) {
+                if (module != -1) {
+                    if (App.dependencies.indexOf(module) == -1) App.dependencies.push(module);
+                };
+                return callback();
+            };
+
+            name = App.getPath(name);
+
+            var el = document.createElement("script")
+
+            el.src = name
+
+            el.onload = function (ev) {
+
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                // Remove the node after it loads.
+                App.scripts.push(name);
+                if (module != -1) App.dependencies.push(module);
+                document.getElementsByTagName('head')[0].removeChild(el);
+                callback();
             }
+
+            el.onerror = function (ev) {
+
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                // Remove the node after it loads.
+                document.getElementsByTagName('head')[0].removeChild(el);
+                callback(ev);
+            };
+
+            document.getElementsByTagName('head')[0].appendChild(el);
         },
         loader: function (ll, ndx, cb) {
+
             if (!cb) {
                 cb = ndx;
                 ndx = 0
@@ -122,6 +96,7 @@
         }
     }
 })(this, this.document, Object.create(null), Object.create(null));
+
 
 /**
  * Copies all the properties of config to obj.
@@ -189,10 +164,21 @@ App.apply(App, {
             console.log('%c  ERR  ', 'border:1px solid red;padding:5px;margin-bottom:4px;font-weight:bold;background-color:#FFFFFF;font-size:14px;padding:0px;color:red', '\t' + time + '\n\t\t\t' + script + '\n\n', str, '\n\n');
         }
     },
+    error: function (str, o) {
+        var date = new Date();
+        var time = date.getFullYear() + '-' + ("0" + (date.getMonth() + 1)).slice(-2) + '-' + ("0" + (date.getDay() + 1)).slice(-2) + ' ' + date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds();
+        var stacks = [
+            '"\\n%c  ERR  %c\t' + time + '\\n\\n%c ' + str + '\\n' + '"',
+            '"border:1px solid red;padding:5px;margin-bottom:4px;font-weight:bold;background-color:#FFFFFF;font-size:14px;padding:0px;color:red"',
+            '"font-weight:bold"',
+            '"color:blue;font-weight:;font-size:14px"'
+        ];
+        window.eval('console.log(' + stacks.join(',') + ')');
+    },
     classManager: {
         modules: [],
         callback: function () {
-            console.log('rrrr');
+
         },
         add: function (ns) {
             if (this.modules.indexOf(ns) == -1) this.modules.push(ns);
@@ -214,7 +200,8 @@ App.apply(App, {
                         if (!App.classManager.isRegistered(ns[i])) temoin = true;
                     };
                     if (temoin === false) return cb();
-                }, 100);
+                    else App.classManager.register(ns, cb);
+                }, 10);
             });
         }
     },
@@ -246,43 +233,56 @@ App.apply(App, {
         };
         return ns;
     },
-    require: function (o, cb, ndx) {
-        function lpath(x) {
-            function inArray(t, x) {
-                for (var i = 0; i < t.length; i++) {
-                    if (t[i] == x.substr(0, t[i].length)) {
+    getPath: function (x) {
+        function inArray(t, x) {
+            for (var i = 0; i < t.length; i++) {
+                if (t[i] == x.substr(0, t[i].length)) {
+                    if (x.indexOf('.') == -1)
+                        var js = x + '.js';
+                    else
                         var js = App.files.paths[t[i]] + x.split(t[i])[1].replace(/\./g, '/') + '.js';
-                        for (var el in App.files.paths) {
-                            if (el.indexOf('#') > -1) {
-                                var replace = el;
-                                var re = new RegExp(replace, "g");
-                                var value = App.files.paths[el];
-                                if (value == "./") value = App.base;
-                                js = js.replace(re, value);
-                            }
-                        };
-                        if (js.indexOf('file') > -1) {
-                            var _uri = js.split('file:///')[1];
-                            js = "file:///" + _uri.replace(/([^:]\/)\/+/g, "$1");
-                        } else {
-                            var _uri = js.split('://');
-                            js = _uri[0] + '://' + _uri[1].replace(/([^:]\/)\/+/g, "$1");
-                        };
-                        return js;
+                    for (var el in App.files.paths) {
+                        if (el.indexOf('#') > -1) {
+                            var replace = el;
+                            var re = new RegExp(replace, "g");
+                            var value = App.files.paths[el];
+                            if (value == "./") value = App.base;
+                            js = js.replace(re, value);
+                        }
                     };
+
+                    if (js.indexOf('file') > -1) {
+                        var _uri = js.split('file:///')[1];
+                        js = "file:///" + _uri.replace(/([^:]\/)\/+/g, "$1");
+                    } else {
+                        var _uri = js.split('://');
+                        js = _uri[0] + '://' + _uri[1].replace(/([^:]\/)\/+/g, "$1");
+                    };
+                    return js;
                 };
-                return x;
             };
-            var tabs = [];
-            for (var el in App.files.paths) tabs.push(el);
-            return inArray(tabs, x);
+            if (x.indexOf('file') > -1) {
+                var _uri = x.split('file:///')[1];
+                x = "file:///" + _uri.replace(/([^:]\/)\/+/g, "$1");
+            } else {
+                var _uri = x.split('://');
+                x = _uri[0] + '://' + _uri[1].replace(/([^:]\/)\/+/g, "$1");
+            };
+            return x;
         };
+        var tabs = [];
+        if (App.files) {
+            for (var el in App.files.paths) tabs.push(el);
+        };
+        return inArray(tabs, x);
+    },
+    require: function (o, cb, ndx) {
         if (!ndx) ndx = 0;
         if (!o[ndx]) return cb();
         var item = o[ndx];
         if (App.classManager.isRegistered(item)) return App.require(o, cb, ndx + 1);
         if (item.indexOf('.') > -1) {
-            var uri = lpath(item);
+            var uri = App.getPath(item);
             App.load(uri, function (err) {
                 if (err) return App.log('ERR', item + ' not found.');
                 App.require(o, cb, ndx + 1);
@@ -290,36 +290,30 @@ App.apply(App, {
         }
     },
     application: function (o) {
-        if (!o) return App.log("ERR", "Application must be defined");
+        if (!o) return App.error("Application must be defined");
 
-        var prepend = "https://unpkg.com/";
+        var prepend = App.cdn.pkg;
         if (App.current.path().indexOf(prepend) > -1)
             App.base = prepend + '@omneedia/core@' + App.version + '/dist';
         else
             App.base = App.current.path();
 
         App.load(App.base + '/core/loader.js', function (err) {
-            if (!App.files) return App.log("ERR", "Omneedia Framework [" + App.version + "] not found");
+
+            if (!App.files) return App.error("Omneedia Framework [" + App.version + "] not found");
             App.files.cdn = App.base;
             if (o.paths) App.apply(App.files.paths, o.paths);
-            window.onload = function () {
-                function loading(o, ndx, cb) {
-                    if (!o[ndx]) return cb();
-                    App.load(o[ndx].url, function (e) {
-                        App.module(o[ndx].module, window.eval(o[ndx].module));
-                        loading(o, ndx + 1, cb);
-                    });
-                };
+            window.addEventListener('load', function () {
                 var tabs = [];
                 for (var el in App.files.dependencies) tabs.push({
                     module: el,
                     url: prepend + App.files.dependencies[el]
                 });
 
-                loading(tabs, 0, function () {
+                App.loader(tabs, function () {
 
                     tabs = [];
-                    for (var i = 0; i < App.files.js.length; i++) tabs.push(App.files.cdn + '/core/js/' + App.files.js[i] + ".js");
+                    for (var i = 0; i < App.files.js.length; i++) tabs.push(App.files.js[i]);
 
                     App.loader(tabs, function (err) {
                         init = function () {
@@ -328,7 +322,7 @@ App.apply(App, {
                                 module: el,
                                 url: prepend + o.dependencies[el]
                             });
-                            loading(tabs, 0, function () {
+                            App.loader(tabs, function () {
                                 if (o.require) {
                                     App.classManager.register(o.require, o.launch);
                                 } else o.launch();
@@ -340,7 +334,7 @@ App.apply(App, {
 
                 });
 
-            }
+            });
         });
     }
 });

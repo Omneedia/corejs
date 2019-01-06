@@ -1,0 +1,68 @@
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Omneedia Starter</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!--script src="https://unpkg.com/@omneedia/core"></script-->
+    <script src="../dist/core.js"></script>
+</head>
+
+<body>
+
+    <div id="test"></div>
+    <div id="test2"></div>
+
+    <script>
+        App.application({
+            name: "com.demo.hello",
+            description: "package description goes here",
+            license: "BSD3",
+            dependencies: {
+                "Ionic": "@ionic/core@latest/dist/ionic.js"
+            },
+            require: [
+                "ux.panel"
+            ],
+            controllers: [
+                "CMain"
+            ],
+            launch: function (me) {
+                console.log(App.scripts);
+                console.log(App.dependencies);
+
+                console.log('launched.');
+
+                var cx = App.create('ux.panel', {
+                    html: "hello world",
+                    renderTo: "#test"
+                });
+
+                var dx = App.create('ux.panel', {
+                    html: "hello world",
+                    bodyStyle: {
+                        "background-color": "green",
+                        "padding": "10px"
+                    },
+                    top: 150,
+                    left: 300,
+                    height: 450,
+                    width: 300,
+                    layout: "absolute",
+                    items: [{
+                        ux: "ux.panel",
+                        html: "test"
+                    }],
+                    renderTo: "#test2"
+                });
+
+                cx.update('toto');
+                dx.update('rien');
+
+            }
+        });
+    </script>
+</body>
+
+</html>

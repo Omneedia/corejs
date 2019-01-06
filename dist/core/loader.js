@@ -7,13 +7,13 @@ App.files = {
         "Vue": "vue@2.5.21/dist/vue.min.js"
     },
     "css": [
-
+        "#cdn/core/css/core.css"
     ],
     "js": [
-        "base",
-        "query"
+        "#cdn/core/js/base",
+        "#cdn/core/js/query"
     ],
     "require": [
-
+        "ux.component"
     ]
 }

@@ -7,15 +7,6 @@ Object.create || (Object.create = function () {
     };
 }());
 
-function extend(destination, source) {
-    for (var k in source) {
-        if (source.hasOwnProperty(k)) {
-            destination[k] = source[k];
-        }
-    }
-    return destination;
-};
-
 function inheritPrototype(childObject, parentObject) {
     // As discussed above, we use the Crockford’s method to copy the properties and methods from the parentObject onto the childObject
     // So the copyOfParent object now has everything the parentObject has 
@@ -30,6 +21,14 @@ function inheritPrototype(childObject, parentObject) {
 }
 
 App.apply(App, {
+    extend: function (destination, source) {
+        for (var k in source) {
+            if (source.hasOwnProperty(k)) {
+                destination[k] = source[k];
+            }
+        }
+        return destination;
+    },
     isEmpty: function (value, allowEmptyString) {
             return (value === null) || (value === undefined) || (!allowEmptyString ? value === '' : false) || (App.isArray(value) && value.length === 0);
         }
@@ -192,6 +191,14 @@ App.apply(App, {
 });
 
 App.apply(App, {
+    create: function (ns, o) {
+        try {
+            var item = window.eval(ns);
+            return new item(o);
+        } catch (e) {
+            App.error(ns + ' not found.', e);
+        }
+    },
     define: function (namespace, o, cb) {
         var me = this;
 
@@ -219,7 +226,7 @@ App.apply(App, {
                         this[el] = arg0[el];
                     }
                 };
-                o.x = this;
+                o.$this = this;
                 o.constructor.call(null, o);
             };
 
@@ -231,7 +238,7 @@ App.apply(App, {
                     for (var i = 0; i < o.extend.length; i++) {
                         if (App.isString(o.extend[i])) var xtd = window.eval(o.extend[i]);
                         else var xtd = o.extend[i];
-                        extend(x.prototype, xtd);
+                        App.extend(x.prototype, xtd);
                     }
                 } else {
                     if (App.isString(o.extend)) var xtd = window.eval(o.extend);
@@ -248,7 +255,33 @@ App.apply(App, {
 
             if (cb) cb(x);
         };
-        if (o.require) return App.require(o.require, init);
-        else init();
+        if (o.dependencies) {
+            var prepend = App.cdn.pkg;
+
+            function loading(o, ndx, cb) {
+                if (!o[ndx]) return cb();
+                App.load(o[ndx].url, function (e) {
+                    loading(o, ndx + 1, cb);
+                });
+            };
+            var tabs = [];
+            for (var el in o.dependencies) tabs.push({
+                module: el,
+                url: prepend + o.dependencies[el]
+            });
+            loading(tabs, 0, function () {
+                if (o.require) return App.require(o.require, init);
+                else init();
+            });
+        } else {
+            if (o.require) return App.require(o.require, init);
+            else init();
+        }
+    }
+});
+
+App.apply(App, {
+    widget: function (w) {
+
     }
 });

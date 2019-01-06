@@ -1,11 +1,10 @@
 App.define("ux.component", {
     properties: {
-        html: ""
+        html: "",
+        dom: -1
     },
     methods: {
-        render: function () {
-            this.renderTo.html(this.html);
-        }
+
     },
     constructor: function (config) {
 

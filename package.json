@@ -1,14 +1,14 @@
 {
-    "name": "@omneedia/core",
-    "version": "0.0.8",
-    "description": "Omneedia core framework",
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "author": {
-        "name": "Stéphane Zucatti"
-    },
-    "license": "MIT",
-    "main": "dist/core.js",
-    "unpkg": "dist/core.js"
+  "name": "@omneedia/core",
+  "version": "0.0.9",
+  "description": "Omneedia core framework",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": {
+    "name": "Stéphane Zucatti"
+  },
+  "license": "MIT",
+  "main": "dist/core.js",
+  "unpkg": "dist/core.js"
 }
